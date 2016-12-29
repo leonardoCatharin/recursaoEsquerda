@@ -1,13 +1,6 @@
-S  -E
-F  -Xa
-E  -TW
-W - +TW| - TW|e
-E -q
-T  -FX
-T -b
+S-SE | SW
+E-TW
+W-+TW|-TW|e
+T-FX
 X-*FX|/FX|e
-F -(E)|n|v
-F              -gB
-T-           za
-B -     v
-W     -  q
+F-(E)|n|v

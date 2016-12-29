@@ -14,11 +14,16 @@
 //estruturas
 
 typedef struct {
-    char p[TAM_PRODUCAO];
+    char c[3];
+} caracter;
+
+typedef struct {
+    caracter p[TAM_PRODUCAO];
+    int incCaracter;
 } producao;
 
 typedef struct {
-    char c;
+    caracter caracter;
     producao producao[TAM_CONJUNTO];
     int incProducao;
 } nt;
@@ -32,6 +37,7 @@ int posConjT = 0;
 
 //assinatura de funções
 void abrirArquivo(char * nomeArquivo);
+int CaracterLinhaJaCriado(char * ch);
 int naoContido(char ch);
 void encontraNaoTerminais();
 void encontraProducoes();
@@ -39,6 +45,10 @@ void splitProducoes(char * str, int i);
 int naoContidoTerminal(char ch);
 void printaAjuda();
 void printGramatica();
+void copiaBuffer(int indexNT, char * buffer);
+caracter criaCaracterLinha(char c);
+producao criaProducaoAuxiliar(producao pr, caracter cr);
+void removerProducao(int indexNT, int indexPro);
 
 int main(int argc, char * argv[]) {
 
@@ -77,9 +87,66 @@ int main(int argc, char * argv[]) {
     abrirArquivo(arquivoEntrada);
     encontraNaoTerminais();
     encontraProducoes();
+
+    for (int i = 0; i < posConjNT; i++) {
+        for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
+            if (strcmp(conjuntoNT[i].caracter.c, conjuntoNT[i].producao[j].p[0].c) == 0) {
+
+                caracter cr = criaCaracterLinha(conjuntoNT[i].caracter.c[0]);
+                producao pr = criaProducaoAuxiliar(conjuntoNT[i].producao[j], cr);
+                
+                //ver se o caracter linha já foi criado
+                int index = CaracterLinhaJaCriado(cr.c);
+                if (index > -1) {
+                    conjuntoNT[index].producao[conjuntoNT[index].incProducao] = pr;
+                    conjuntoNT[index].incProducao++;
+
+                } else {
+                    conjuntoNT[posConjNT].caracter = cr;
+                    conjuntoNT[posConjNT].producao[conjuntoNT[posConjNT].incProducao] = pr;
+                    conjuntoNT[posConjNT].incProducao++;
+                    posConjNT++;
+                }
+                removeProducao(i, j);
+            }
+        }
+    }
+
     fclose(file);
     free(arquivoEntrada);
     printGramatica();
+}
+
+caracter criaCaracterLinha(char c) {
+    caracter cr;
+
+    cr.c[0] = c;
+    cr.c[1] = '\'';
+    cr.c[2] = '\0';
+
+    return cr;
+}
+
+producao criaProducaoAuxiliar(producao pr, caracter cr) {
+    producao toReturn;
+
+    toReturn.incCaracter = 0;
+
+    for (int i = 1; i < pr.incCaracter; i++) {
+        strcpy(toReturn.p[toReturn.incCaracter].c,
+                pr.p[i].c);
+        toReturn.incCaracter++;
+    }
+
+    strcpy(toReturn.p[toReturn.incCaracter].c,
+            cr.c);
+    toReturn.incCaracter++;
+
+    return toReturn;
+}
+
+void removeProducao(int indexNT, int indexPro) {
+    conjuntoNT[indexNT].producao[indexPro].incCaracter = 0;
 }
 
 void printaAjuda() {
@@ -100,12 +167,23 @@ void abrirArquivo(char * nomeArquivo) {
 int naoContido(char ch) {
     int i;
     for (i = 0; i < posConjNT; i++) {
-        if (conjuntoNT[i].c == ch) {
+        if (conjuntoNT[i].caracter.c[0] == ch) {
             return 0;
         }
     }
 
     return 1;
+}
+
+int CaracterLinhaJaCriado(char * ch) {
+    int i;
+    for (i = 0; i < posConjNT; i++) {
+        if (strcmp(conjuntoNT[i].caracter.c, ch) == 0) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 void encontraNaoTerminais() {
@@ -114,7 +192,7 @@ void encontraNaoTerminais() {
     do {
         ch = fgetc(file);
         if (isupper(ch) && naoContido(ch)) {
-            conjuntoNT[posConjNT++].c = ch;
+            conjuntoNT[posConjNT++].caracter.c[0] = ch;
         } else if (!isupper(ch) && naoContidoTerminal(ch) &&
                 ch != '|' && ch != '-' && ch != '\n' &&
                 ch != EOF && ch != LAMBDA && ch != ' ') {
@@ -165,7 +243,7 @@ void encontraProducoes() {
             flag = 1;
 
             for (int i = 0; i < posConjNT; i++) {
-                if (cArquivo == conjuntoNT[i].c) {
+                if (cArquivo == conjuntoNT[i].caracter.c[0]) {
                     cArquivo = fgetc(file);
                     while (cArquivo != '\n') {
                         if (cArquivo != ' ') {
@@ -185,6 +263,16 @@ void encontraProducoes() {
     } while (cArquivo != EOF);
 }
 
+void copiaBuffer(int indexNT, char * buffer) {
+    for (int k = 0; k < strlen(buffer); k++) {
+        conjuntoNT[indexNT].producao[conjuntoNT[indexNT].incProducao]
+                .p[conjuntoNT[indexNT].producao[conjuntoNT[indexNT].incProducao].incCaracter]
+                .c[0] = buffer[k];
+
+        conjuntoNT[indexNT].producao[conjuntoNT[indexNT].incProducao].incCaracter++;
+    }
+}
+
 void splitProducoes(char* str, int i) {
     char buffer[50];
     buffer[0] = '\0';
@@ -193,7 +281,7 @@ void splitProducoes(char* str, int i) {
 
     while (str[index] != '\0') {
         if (str[index] == DELIMITADOR) {
-            strcpy(conjuntoNT[i].producao[conjuntoNT[i].incProducao].p, buffer);
+            copiaBuffer(i, buffer);
             conjuntoNT[i].incProducao++;
             buffer[0] = '\0';
             incBuffer = 0;
@@ -205,16 +293,18 @@ void splitProducoes(char* str, int i) {
         index++;
     }
     buffer[incBuffer] = '\0';
-    strcpy(conjuntoNT[i].producao[conjuntoNT[i].incProducao].p, buffer);
+    copiaBuffer(i, buffer);
     conjuntoNT[i].incProducao++;
 }
 
 void printGramatica() {
     for (int i = 0; i < posConjNT; i++) {
-        printf("%c -> ", conjuntoNT[i].c);
-
+        printf("%s -> ", conjuntoNT[i].caracter.c);
         for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
-            printf("%s |", conjuntoNT[i].producao[j].p);
+            for (int k = 0; k < conjuntoNT[i].producao[j].incCaracter; k++) {
+                printf("%s", conjuntoNT[i].producao[j].p[k].c);
+            }
+            printf("|");
         }
 
         printf(" \n");
@@ -223,7 +313,7 @@ void printGramatica() {
 
 int retornaIndiceNt(char c) {
     for (int i = 0; i < posConjNT; i++) {
-        if (c == conjuntoNT[i].c) {
+        if (c == conjuntoNT[i].caracter.c[0]) {
             return i;
         }
     }

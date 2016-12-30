@@ -1,6 +1,6 @@
-S-SE | SW
-E-TW
-W-+TW|-TW|e
-T-FX
-X-*FX|/FX|e
-F-(E)|n|v
+S- SE | SW | W
+E- TW
+W- +TW|-TW|e
+T- FX
+X- *FX|/FX|e
+F- (E)|n|v

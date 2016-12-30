@@ -48,7 +48,11 @@ void printGramatica();
 void copiaBuffer(int indexNT, char * buffer);
 caracter criaCaracterLinha(char c);
 producao criaProducaoAuxiliar(producao pr, caracter cr);
+producao criaProducaoLambda();
 void removerProducao(int indexNT, int indexPro);
+void addCaracterLinhaEmProducoes(int indexNT, caracter cr);
+int retornaIndiceNt(char * c);
+void converteGramatica();
 
 int main(int argc, char * argv[]) {
 
@@ -87,15 +91,28 @@ int main(int argc, char * argv[]) {
     abrirArquivo(arquivoEntrada);
     encontraNaoTerminais();
     encontraProducoes();
+    converteGramatica();
+    
+    fclose(file);
+    free(arquivoEntrada);
+    printGramatica();
+}
 
+void converteGramatica(){
     for (int i = 0; i < posConjNT; i++) {
+        int jaAddCaracterLinha = 0;
+        int addLambda = 0;
+        caracter cr = criaCaracterLinha(conjuntoNT[i].caracter.c[0]);
         for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
             if (strcmp(conjuntoNT[i].caracter.c, conjuntoNT[i].producao[j].p[0].c) == 0) {
-
-                caracter cr = criaCaracterLinha(conjuntoNT[i].caracter.c[0]);
                 producao pr = criaProducaoAuxiliar(conjuntoNT[i].producao[j], cr);
-                
-                //ver se o caracter linha já foi criado
+                addLambda = 1;
+                if (!jaAddCaracterLinha) {
+                    addCaracterLinhaEmProducoes(i, cr);
+                    jaAddCaracterLinha = 1;
+                }
+
+                //verifica se o caracter já foi criado
                 int index = CaracterLinhaJaCriado(cr.c);
                 if (index > -1) {
                     conjuntoNT[index].producao[conjuntoNT[index].incProducao] = pr;
@@ -110,11 +127,24 @@ int main(int argc, char * argv[]) {
                 removeProducao(i, j);
             }
         }
+        if (addLambda) {
+            producao pro = criaProducaoLambda();
+            int index = retornaIndiceNt(cr.c);
+            conjuntoNT[index].producao[conjuntoNT[index].incProducao] = pro;
+            conjuntoNT[index].incProducao++;
+        }
     }
 
-    fclose(file);
-    free(arquivoEntrada);
-    printGramatica();
+}
+
+void addCaracterLinhaEmProducoes(int indexNT, caracter cr) {
+    for (int i = 0; i < posConjNT; i++) {
+        if (conjuntoNT[indexNT].producao[i].p[0].c[0] != cr.c[0] && conjuntoNT[indexNT].producao[i].p[0].c[0] != LAMBDA) {
+            strcpy(conjuntoNT[indexNT].producao[i].p[conjuntoNT[indexNT].producao[i].incCaracter].c,
+                    cr.c);
+            conjuntoNT[indexNT].producao[i].incCaracter++;
+        }
+    }
 }
 
 caracter criaCaracterLinha(char c) {
@@ -140,6 +170,18 @@ producao criaProducaoAuxiliar(producao pr, caracter cr) {
 
     strcpy(toReturn.p[toReturn.incCaracter].c,
             cr.c);
+    toReturn.incCaracter++;
+
+    return toReturn;
+}
+
+producao criaProducaoLambda() {
+    producao toReturn;
+
+    toReturn.incCaracter = 0;
+
+    toReturn.p[toReturn.incCaracter].c[0] = LAMBDA;
+    toReturn.p[toReturn.incCaracter].c[1] = '\0';
     toReturn.incCaracter++;
 
     return toReturn;
@@ -304,16 +346,18 @@ void printGramatica() {
             for (int k = 0; k < conjuntoNT[i].producao[j].incCaracter; k++) {
                 printf("%s", conjuntoNT[i].producao[j].p[k].c);
             }
-            printf("|");
+            if (conjuntoNT[i].producao[j].incCaracter > 0) {
+                printf("|");
+            }
         }
 
         printf(" \n");
     }
 }
 
-int retornaIndiceNt(char c) {
+int retornaIndiceNt(char * c) {
     for (int i = 0; i < posConjNT; i++) {
-        if (c == conjuntoNT[i].caracter.c[0]) {
+        if (strcmp(c, conjuntoNT[i].caracter.c) == 0) {
             return i;
         }
     }

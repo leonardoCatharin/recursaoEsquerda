@@ -217,6 +217,7 @@ void converteGramatica() {
                     conjuntoNT[index].incProducao++;
 
                 } else {
+                    //CARACTER INSERIDO AQUI
                     conjuntoNT[posConjNT].caracter = cr;
                     conjuntoNT[posConjNT].producao[conjuntoNT[posConjNT].incProducao] = pr;
                     conjuntoNT[posConjNT].incProducao++;

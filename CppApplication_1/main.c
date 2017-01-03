@@ -5,7 +5,7 @@
 #include <getopt.h>
 
 //parametros
-#define TAM_PRODUCAO 10
+#define TAM_PRODUCAO 20
 #define TAM_CONJUNTO 50
 #define DELIMITADOR '|'
 #define  LAMBDA 'e'
@@ -52,6 +52,7 @@ producao criaProducaoLambda();
 void removerProducao(int indexNT, int indexPro);
 void addCaracterLinhaEmProducoes(int indexNT, caracter cr);
 int retornaIndiceNt(char * c);
+void verificaRecursaoIndireta();
 void converteGramatica();
 
 int main(int argc, char * argv[]) {
@@ -91,14 +92,77 @@ int main(int argc, char * argv[]) {
     abrirArquivo(arquivoEntrada);
     encontraNaoTerminais();
     encontraProducoes();
+    verificaRecursaoIndireta();
     converteGramatica();
-    
     fclose(file);
     free(arquivoEntrada);
     printGramatica();
 }
 
-void converteGramatica(){
+void verificaRecursaoIndireta() {
+    for (int i = 0; i < posConjNT; i++) {
+        for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
+            if (isupper(conjuntoNT[i].producao[j].p[0].c[0])) {
+                int indexNT = retornaIndiceNt(conjuntoNT[i].producao[j].p[0].c);
+
+                for (int k = 0; k < conjuntoNT[indexNT].incProducao; k++) {
+                    if (conjuntoNT[indexNT].producao[k].p[0].c[0]
+                            == conjuntoNT[i].caracter.c[0] && conjuntoNT[i].caracter.c[0] != conjuntoNT[indexNT].caracter.c[0]) {
+                        simplificaGramatica(i, k, indexNT);
+                    }
+                }
+            }
+        }
+    }
+
+    printGramatica();
+    printf("\n");
+}
+
+void simplificaGramatica(int src, int indexPr, int des) {
+    //salvaProducoesPosIndexPr
+    producao vetProducoesSalvas[50];
+    int contVet = 0;
+    for (int i = indexPr + 1; i < conjuntoNT[des].incProducao; i++) {
+        vetProducoesSalvas[contVet] = conjuntoNT[des].producao[i];
+        contVet++;
+    }
+    conjuntoNT[des].incProducao = indexPr;
+
+    //remove o simbolo não terminal src
+    for (int j = 0; j < conjuntoNT[des].producao[indexPr].incCaracter - 1; j++) {
+        strcpy(conjuntoNT[des].producao[indexPr].p[j].c,
+                conjuntoNT[des].producao[indexPr].p[j + 1].c);
+    }
+    conjuntoNT[des].producao[indexPr].incCaracter--;
+
+    producao prAux = conjuntoNT[des].producao[indexPr];
+
+    for (int i = 0; i < conjuntoNT[src].incProducao; i++) {
+        producao pro;
+        pro.incCaracter = 0;
+
+        for (int j = 0; j < conjuntoNT[src].producao[i].incCaracter; j++) {
+            strcpy(pro.p[pro.incCaracter].c, conjuntoNT[src].producao[i].p[j].c);
+            pro.incCaracter++;
+        }
+
+        for (int j = 0; j < prAux.incCaracter; j++) {
+            strcpy(pro.p[pro.incCaracter].c, prAux.p[j].c);
+            pro.incCaracter++;
+        }
+
+        conjuntoNT[des].producao[conjuntoNT[des].incProducao] = pro;
+        conjuntoNT[des].incProducao++;
+    }
+
+    for (int i = 0; i < contVet; i++) {
+        conjuntoNT[des].producao[conjuntoNT[des].incProducao] = vetProducoesSalvas[i];
+        conjuntoNT[des].incProducao++;
+    }
+}
+
+void converteGramatica() {
     for (int i = 0; i < posConjNT; i++) {
         int jaAddCaracterLinha = 0;
         int addLambda = 0;
@@ -138,9 +202,11 @@ void converteGramatica(){
 }
 
 void addCaracterLinhaEmProducoes(int indexNT, caracter cr) {
-    for (int i = 0; i < posConjNT; i++) {
-        if (conjuntoNT[indexNT].producao[i].p[0].c[0] != cr.c[0] && conjuntoNT[indexNT].producao[i].p[0].c[0] != LAMBDA) {
-            strcpy(conjuntoNT[indexNT].producao[i].p[conjuntoNT[indexNT].producao[i].incCaracter].c,
+    for (int i = 0; i < conjuntoNT[indexNT].incProducao; i++) {
+        if (conjuntoNT[indexNT].producao[i].p[0].c[0] !=
+                cr.c[0] && conjuntoNT[indexNT].producao[i].p[0].c[0] != LAMBDA) {
+            strcpy(conjuntoNT[indexNT].producao[i].p[
+                    conjuntoNT[indexNT].producao[i].incCaracter].c,
                     cr.c);
             conjuntoNT[indexNT].producao[i].incCaracter++;
         }
@@ -343,6 +409,7 @@ void printGramatica() {
     for (int i = 0; i < posConjNT; i++) {
         printf("%s -> ", conjuntoNT[i].caracter.c);
         for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
+            //            printf("%i", conjuntoNT[i].producao[j].incCaracter);
             for (int k = 0; k < conjuntoNT[i].producao[j].incCaracter; k++) {
                 printf("%s", conjuntoNT[i].producao[j].p[k].c);
             }

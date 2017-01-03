@@ -1,26 +1,3 @@
-S->E|
-	 First: {(,n,v}
-	 Follow: {$}
-E->TW|
-	 First: {(,n,v}
-	 Follow: {$,)}
-T->FX|
-	 First: {(,n,v}
-	 Follow: {+,-,$,)}
-W->+TW|-TW|e|
-	 First: {+,-,e}
-	 Follow: {$,)}
-F->(E)|n|v|
-	 First: {(,n,v}
-	 Follow: {*,/,+,-,$,)}
-X->*FX|/FX|e|
-	 First: {*,/,e}
-	 Follow: {+,-,$,)}
-
-	|+ 	|- 	|* 	|/ 	|( 	|) 	|n 	|v 	|$ 	|
-S 	|	|	|	|	|S->E 	|	|S->E 	|S->E 	|	|
-E 	|	|	|	|	|E->TW 	|	|E->TW 	|E->TW 	|	|
-T 	|	|	|	|	|T->FX 	|	|T->FX 	|T->FX 	|	|
-W 	|W->+TW |W->-TW |	|	|	|W->e 	|	|	|W->e 	|
-F 	|	|	|	|	|F->(E) |	|F->n 	|F->v 	|	|
-X 	|X->e 	|X->e 	|X->*FX |X->/FX |	|X->e 	|	|	|X->e 	|
+S -> Aa|b| 
+A -> bdA'|e| 
+A' -> cA'|adA'|e|

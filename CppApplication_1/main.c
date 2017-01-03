@@ -36,24 +36,29 @@ int posConjNT = 0;
 int posConjT = 0;
 
 //assinatura de funções
+//Funções principais
 void abrirArquivo(char * nomeArquivo);
-int CaracterLinhaJaCriado(char * ch);
-int naoContido(char ch);
 void encontraNaoTerminais();
 void encontraProducoes();
-void splitProducoes(char * str, int i);
-int naoContidoTerminal(char ch);
-void printaAjuda();
-void printGramatica();
-void copiaBuffer(int indexNT, char * buffer);
-caracter criaCaracterLinha(char c);
-producao criaProducaoAuxiliar(producao pr, caracter cr);
-producao criaProducaoLambda();
-void removerProducao(int indexNT, int indexPro);
-void addCaracterLinhaEmProducoes(int indexNT, caracter cr);
-int retornaIndiceNt(char * c);
 void verificaRecursaoIndireta();
 void converteGramatica();
+void printGramatica(char * nomeArq);
+//Funções auxiliares: Reconhecimento de recursão indireta
+void simplificaGramatica(int src, int indexPr, int des);
+//Funções auxiliares: Tratamento de recursão à Esquerda
+caracter criaCaracterLinha(char c);
+producao criaProducaoAuxiliar(producao pr, caracter cr);
+void addCaracterLinhaEmProducoes(int indexNT, caracter cr);
+int CaracterLinhaJaCriado(char * ch);
+void removeProducao(int indexNT, int indexPro);
+producao criaProducaoLambda();
+//Funções auxiliares
+void printaAjuda();
+int naoContido(char ch);
+int naoContidoTerminal(char ch);
+void copiaBuffer(int indexNT, char * buffer);
+void splitProducoes(char * str, int i);
+int retornaIndiceNt(char * c);
 
 int main(int argc, char * argv[]) {
 
@@ -94,9 +99,84 @@ int main(int argc, char * argv[]) {
     encontraProducoes();
     verificaRecursaoIndireta();
     converteGramatica();
+    printGramatica(arquivoSaida);
     fclose(file);
     free(arquivoEntrada);
-    printGramatica();
+}
+
+//Funções principais
+
+void abrirArquivo(char * nomeArquivo) {
+    if ((file = fopen(nomeArquivo, "r")) == NULL) {
+        printf("Falha na abertura do arquivo");
+    }
+}
+
+void encontraProducoes() {
+    char ch = '\0';
+    char cArquivo = '\0';
+    char buffer[TAM_PRODUCAO];
+    int incBuffer = 0;
+    buffer[0] = '\0';
+    int flag = 1;
+
+    fseek(file, 0, SEEK_SET);
+
+    do {
+        if (flag) {
+            cArquivo = fgetc(file);
+            flag = 0;
+        }
+        if (fgetc(file) == '-') {
+
+            flag = 1;
+
+            for (int i = 0; i < posConjNT; i++) {
+                if (cArquivo == conjuntoNT[i].caracter.c[0]) {
+                    cArquivo = fgetc(file);
+                    while (cArquivo != '\n') {
+                        if (cArquivo != ' ') {
+                            buffer[incBuffer] = cArquivo;
+                            buffer[incBuffer + 1] = '\0';
+                            incBuffer++;
+                        }
+                        cArquivo = fgetc(file);
+                    }
+                    splitProducoes(buffer, i);
+
+                    buffer[0] = '\0';
+                    incBuffer = 0;
+                }
+            }
+        }
+    } while (cArquivo != EOF);
+}
+
+void encontraNaoTerminais() {
+    int flag = 0;
+    char ch = '\0';
+    do {
+        ch = fgetc(file);
+        if (isupper(ch) && naoContido(ch)) {
+            conjuntoNT[posConjNT++].caracter.c[0] = ch;
+        } else if (!isupper(ch) && naoContidoTerminal(ch) &&
+                ch != '|' && ch != '-' && ch != '\n' &&
+                ch != EOF && ch != LAMBDA && ch != ' ') {
+            conjuntoT[posConjT++] = ch;
+        }
+        if (ch == '-' && naoContidoTerminal(ch)) {
+            if (flag == 1) {
+                conjuntoT[posConjT++] = ch;
+            } else {
+                flag = 1;
+            }
+        }
+        if (ch == '\n') {
+            flag = 0;
+        }
+
+    } while (ch != EOF);
+    conjuntoT[posConjT++] = '$';
 }
 
 void verificaRecursaoIndireta() {
@@ -114,10 +194,68 @@ void verificaRecursaoIndireta() {
             }
         }
     }
-
-    printGramatica();
-    printf("\n");
 }
+
+void converteGramatica() {
+    for (int i = 0; i < posConjNT; i++) {
+        int jaAddCaracterLinha = 0;
+        int addLambda = 0;
+        caracter cr = criaCaracterLinha(conjuntoNT[i].caracter.c[0]);
+        for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
+            if (strcmp(conjuntoNT[i].caracter.c, conjuntoNT[i].producao[j].p[0].c) == 0) {
+                producao pr = criaProducaoAuxiliar(conjuntoNT[i].producao[j], cr);
+                addLambda = 1;
+                if (!jaAddCaracterLinha) {
+                    addCaracterLinhaEmProducoes(i, cr);
+                    jaAddCaracterLinha = 1;
+                }
+
+                //verifica se o caracter já foi criado
+                int index = CaracterLinhaJaCriado(cr.c);
+                if (index > -1) {
+                    conjuntoNT[index].producao[conjuntoNT[index].incProducao] = pr;
+                    conjuntoNT[index].incProducao++;
+
+                } else {
+                    conjuntoNT[posConjNT].caracter = cr;
+                    conjuntoNT[posConjNT].producao[conjuntoNT[posConjNT].incProducao] = pr;
+                    conjuntoNT[posConjNT].incProducao++;
+                    posConjNT++;
+                }
+                removeProducao(i, j);
+            }
+        }
+        if (addLambda) {
+            producao pro = criaProducaoLambda();
+            int index = retornaIndiceNt(cr.c);
+            conjuntoNT[index].producao[conjuntoNT[index].incProducao] = pro;
+            conjuntoNT[index].incProducao++;
+        }
+    }
+}
+
+void printGramatica(char * nomeArq) {
+    
+    if ((file = fopen(nomeArq, "w")) == NULL) {
+        printf("Falha na abertura do arquivo");
+    }
+    
+    for (int i = 0; i < posConjNT; i++) {
+        fprintf(file, "%s -> ", conjuntoNT[i].caracter.c);
+        for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
+            for (int k = 0; k < conjuntoNT[i].producao[j].incCaracter; k++) {
+                fprintf(file, "%s", conjuntoNT[i].producao[j].p[k].c);
+            }
+            if (conjuntoNT[i].producao[j].incCaracter > 0) {
+                fprintf(file, "|");
+            }
+        }
+
+        fprintf(file, " \n");
+    }
+}
+
+//Funções auxiliares: Reconhecimento de recursão indireta
 
 void simplificaGramatica(int src, int indexPr, int des) {
     //salvaProducoesPosIndexPr
@@ -162,56 +300,7 @@ void simplificaGramatica(int src, int indexPr, int des) {
     }
 }
 
-void converteGramatica() {
-    for (int i = 0; i < posConjNT; i++) {
-        int jaAddCaracterLinha = 0;
-        int addLambda = 0;
-        caracter cr = criaCaracterLinha(conjuntoNT[i].caracter.c[0]);
-        for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
-            if (strcmp(conjuntoNT[i].caracter.c, conjuntoNT[i].producao[j].p[0].c) == 0) {
-                producao pr = criaProducaoAuxiliar(conjuntoNT[i].producao[j], cr);
-                addLambda = 1;
-                if (!jaAddCaracterLinha) {
-                    addCaracterLinhaEmProducoes(i, cr);
-                    jaAddCaracterLinha = 1;
-                }
-
-                //verifica se o caracter já foi criado
-                int index = CaracterLinhaJaCriado(cr.c);
-                if (index > -1) {
-                    conjuntoNT[index].producao[conjuntoNT[index].incProducao] = pr;
-                    conjuntoNT[index].incProducao++;
-
-                } else {
-                    conjuntoNT[posConjNT].caracter = cr;
-                    conjuntoNT[posConjNT].producao[conjuntoNT[posConjNT].incProducao] = pr;
-                    conjuntoNT[posConjNT].incProducao++;
-                    posConjNT++;
-                }
-                removeProducao(i, j);
-            }
-        }
-        if (addLambda) {
-            producao pro = criaProducaoLambda();
-            int index = retornaIndiceNt(cr.c);
-            conjuntoNT[index].producao[conjuntoNT[index].incProducao] = pro;
-            conjuntoNT[index].incProducao++;
-        }
-    }
-
-}
-
-void addCaracterLinhaEmProducoes(int indexNT, caracter cr) {
-    for (int i = 0; i < conjuntoNT[indexNT].incProducao; i++) {
-        if (conjuntoNT[indexNT].producao[i].p[0].c[0] !=
-                cr.c[0] && conjuntoNT[indexNT].producao[i].p[0].c[0] != LAMBDA) {
-            strcpy(conjuntoNT[indexNT].producao[i].p[
-                    conjuntoNT[indexNT].producao[i].incCaracter].c,
-                    cr.c);
-            conjuntoNT[indexNT].producao[i].incCaracter++;
-        }
-    }
-}
+//Funções auxiliares: Tratamento de recursão à Esquerda
 
 caracter criaCaracterLinha(char c) {
     caracter cr;
@@ -241,46 +330,16 @@ producao criaProducaoAuxiliar(producao pr, caracter cr) {
     return toReturn;
 }
 
-producao criaProducaoLambda() {
-    producao toReturn;
-
-    toReturn.incCaracter = 0;
-
-    toReturn.p[toReturn.incCaracter].c[0] = LAMBDA;
-    toReturn.p[toReturn.incCaracter].c[1] = '\0';
-    toReturn.incCaracter++;
-
-    return toReturn;
-}
-
-void removeProducao(int indexNT, int indexPro) {
-    conjuntoNT[indexNT].producao[indexPro].incCaracter = 0;
-}
-
-void printaAjuda() {
-    printf("****\n");
-    printf("Para passar como parâmetro o arquivo de entrada, utilize o seguinte parâmetro:\n");
-    printf("\t -i <nome_arquivo>\n");
-    printf("Para passar como parâmetro o arquivo de saída, utilize o seguinte parâmetro:\n");
-    printf("\t -o <nome_arquivo>\n");
-    printf("****\n");
-}
-
-void abrirArquivo(char * nomeArquivo) {
-    if ((file = fopen(nomeArquivo, "r")) == NULL) {
-        printf("Falha na abertura do arquivo");
-    }
-}
-
-int naoContido(char ch) {
-    int i;
-    for (i = 0; i < posConjNT; i++) {
-        if (conjuntoNT[i].caracter.c[0] == ch) {
-            return 0;
+void addCaracterLinhaEmProducoes(int indexNT, caracter cr) {
+    for (int i = 0; i < conjuntoNT[indexNT].incProducao; i++) {
+        if (conjuntoNT[indexNT].producao[i].p[0].c[0] !=
+                cr.c[0] && conjuntoNT[indexNT].producao[i].p[0].c[0] != LAMBDA) {
+            strcpy(conjuntoNT[indexNT].producao[i].p[
+                    conjuntoNT[indexNT].producao[i].incCaracter].c,
+                    cr.c);
+            conjuntoNT[indexNT].producao[i].incCaracter++;
         }
     }
-
-    return 1;
 }
 
 int CaracterLinhaJaCriado(char * ch) {
@@ -294,31 +353,42 @@ int CaracterLinhaJaCriado(char * ch) {
     return -1;
 }
 
-void encontraNaoTerminais() {
-    int flag = 0;
-    char ch = '\0';
-    do {
-        ch = fgetc(file);
-        if (isupper(ch) && naoContido(ch)) {
-            conjuntoNT[posConjNT++].caracter.c[0] = ch;
-        } else if (!isupper(ch) && naoContidoTerminal(ch) &&
-                ch != '|' && ch != '-' && ch != '\n' &&
-                ch != EOF && ch != LAMBDA && ch != ' ') {
-            conjuntoT[posConjT++] = ch;
-        }
-        if (ch == '-' && naoContidoTerminal(ch)) {
-            if (flag == 1) {
-                conjuntoT[posConjT++] = ch;
-            } else {
-                flag = 1;
-            }
-        }
-        if (ch == '\n') {
-            flag = 0;
-        }
+void removeProducao(int indexNT, int indexPro) {
+    conjuntoNT[indexNT].producao[indexPro].incCaracter = 0;
+}
 
-    } while (ch != EOF);
-    conjuntoT[posConjT++] = '$';
+producao criaProducaoLambda() {
+    producao toReturn;
+
+    toReturn.incCaracter = 0;
+
+    toReturn.p[toReturn.incCaracter].c[0] = LAMBDA;
+    toReturn.p[toReturn.incCaracter].c[1] = '\0';
+    toReturn.incCaracter++;
+
+    return toReturn;
+}
+
+//Funções Auxiliares
+
+void printaAjuda() {
+    printf("****\n");
+    printf("Para passar como parâmetro o arquivo de entrada, utilize o seguinte parâmetro:\n");
+    printf("\t -i <nome_arquivo>\n");
+    printf("Para passar como parâmetro o arquivo de saída, utilize o seguinte parâmetro:\n");
+    printf("\t -o <nome_arquivo>\n");
+    printf("****\n");
+}
+
+int naoContido(char ch) {
+    int i;
+    for (i = 0; i < posConjNT; i++) {
+        if (conjuntoNT[i].caracter.c[0] == ch) {
+            return 0;
+        }
+    }
+
+    return 1;
 }
 
 int naoContidoTerminal(char ch) {
@@ -329,46 +399,6 @@ int naoContidoTerminal(char ch) {
         }
     }
     return 1;
-}
-
-void encontraProducoes() {
-    char ch = '\0';
-    char cArquivo = '\0';
-    char buffer[TAM_PRODUCAO];
-    int incBuffer = 0;
-    buffer[0] = '\0';
-    int flag = 1;
-
-    fseek(file, 0, SEEK_SET);
-
-    do {
-        if (flag) {
-            cArquivo = fgetc(file);
-            flag = 0;
-        }
-        if (fgetc(file) == '-') {
-
-            flag = 1;
-
-            for (int i = 0; i < posConjNT; i++) {
-                if (cArquivo == conjuntoNT[i].caracter.c[0]) {
-                    cArquivo = fgetc(file);
-                    while (cArquivo != '\n') {
-                        if (cArquivo != ' ') {
-                            buffer[incBuffer] = cArquivo;
-                            buffer[incBuffer + 1] = '\0';
-                            incBuffer++;
-                        }
-                        cArquivo = fgetc(file);
-                    }
-                    splitProducoes(buffer, i);
-
-                    buffer[0] = '\0';
-                    incBuffer = 0;
-                }
-            }
-        }
-    } while (cArquivo != EOF);
 }
 
 void copiaBuffer(int indexNT, char * buffer) {
@@ -403,23 +433,6 @@ void splitProducoes(char* str, int i) {
     buffer[incBuffer] = '\0';
     copiaBuffer(i, buffer);
     conjuntoNT[i].incProducao++;
-}
-
-void printGramatica() {
-    for (int i = 0; i < posConjNT; i++) {
-        printf("%s -> ", conjuntoNT[i].caracter.c);
-        for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
-            //            printf("%i", conjuntoNT[i].producao[j].incCaracter);
-            for (int k = 0; k < conjuntoNT[i].producao[j].incCaracter; k++) {
-                printf("%s", conjuntoNT[i].producao[j].p[k].c);
-            }
-            if (conjuntoNT[i].producao[j].incCaracter > 0) {
-                printf("|");
-            }
-        }
-
-        printf(" \n");
-    }
 }
 
 int retornaIndiceNt(char * c) {

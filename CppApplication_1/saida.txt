@@ -1,3 +1,3 @@
-S -> Aa|b| 
-A -> bdA'|e| 
-A' -> cA'|adA'|e|
+S -> Aa|b 
+A -> bdA'|e 
+A' -> cA'|adA'|e 

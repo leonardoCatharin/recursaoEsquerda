@@ -1,0 +1,4 @@
+S-XX|Y
+X-aXb|e
+Y-aYb|Z
+Z-bZa|e

@@ -3,6 +3,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <getopt.h>
+#include <limits.h>
+#include <errno.h>
 
 //parametros
 #define TAM_PRODUCAO 20
@@ -61,7 +63,6 @@ void splitProducoes(char * str, int i);
 int retornaIndiceNt(char * c);
 
 int main(int argc, char * argv[]) {
-
     int option = -1;
     char* arquivoEntrada = NULL;
     char* arquivoSaida = NULL;
@@ -93,7 +94,6 @@ int main(int argc, char * argv[]) {
         printf("\nArquivo de saída não especificado, favor passar como parâmetro. Caso precise de ajuda, utilize o parâmetro \"-h\"\n");
         exit(0);
     }
-    // if(arquivoEntrada != NULL && arquivoSaida != NULL){
     abrirArquivo(arquivoEntrada);
     encontraNaoTerminais();
     encontraProducoes();
@@ -108,7 +108,8 @@ int main(int argc, char * argv[]) {
 
 void abrirArquivo(char * nomeArquivo) {
     if ((file = fopen(nomeArquivo, "r")) == NULL) {
-        printf("Falha na abertura do arquivo");
+        printf("Arquivo de entrada não encontrado!\n");
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -149,7 +150,7 @@ void encontraProducoes() {
                 }
             }
         }
-    } while (cArquivo != EOF);
+    } while (!feof(file));
 }
 
 void encontraNaoTerminais() {
@@ -171,11 +172,10 @@ void encontraNaoTerminais() {
                 flag = 1;
             }
         }
-        if (ch == '\n') {
+        if (ch == '\n') {            
             flag = 0;
         }
-
-    } while (ch != EOF);
+    } while (!feof(file));
     conjuntoT[posConjT++] = '$';
 }
 
@@ -236,18 +236,18 @@ void converteGramatica() {
 }
 
 void printGramatica(char * nomeArq) {
-    
+
     if ((file = fopen(nomeArq, "w")) == NULL) {
         printf("Falha na abertura do arquivo");
     }
-    
+
     for (int i = 0; i < posConjNT; i++) {
         fprintf(file, "%s -> ", conjuntoNT[i].caracter.c);
         for (int j = 0; j < conjuntoNT[i].incProducao; j++) {
             for (int k = 0; k < conjuntoNT[i].producao[j].incCaracter; k++) {
                 fprintf(file, "%s", conjuntoNT[i].producao[j].p[k].c);
             }
-            if (conjuntoNT[i].producao[j].incCaracter > 0) {
+            if (conjuntoNT[i].producao[j].incCaracter > 0 && j < conjuntoNT[i].incProducao - 1) {
                 fprintf(file, "|");
             }
         }
@@ -388,7 +388,6 @@ int naoContido(char ch) {
             return 0;
         }
     }
-
     return 1;
 }
 

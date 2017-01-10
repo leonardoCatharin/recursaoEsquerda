@@ -1,3 +1,5 @@
-S -> Aa|b 
-A -> bdA'|e 
-A' -> cA'|adA'|e 
+S -> TS' 
+T -> FT' 
+F -> (S)|i|n 
+S' -> +TS'|-TS'|e 
+T' -> +FT'|/FT'|e 

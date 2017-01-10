@@ -172,10 +172,11 @@ void encontraNaoTerminais() {
                 flag = 1;
             }
         }
-        if (ch == '\n') {            
+        if (ch == '\n') {
             flag = 0;
         }
     } while (!feof(file));
+
     conjuntoT[posConjT++] = '$';
 }
 
@@ -402,11 +403,9 @@ int naoContidoTerminal(char ch) {
 }
 
 void copiaBuffer(int indexNT, char * buffer) {
+    printf("%i, %s\n", indexNT, buffer);
     for (int k = 0; k < strlen(buffer); k++) {
-        conjuntoNT[indexNT].producao[conjuntoNT[indexNT].incProducao]
-                .p[conjuntoNT[indexNT].producao[conjuntoNT[indexNT].incProducao].incCaracter]
-                .c[0] = buffer[k];
-
+        conjuntoNT[indexNT].producao[conjuntoNT[indexNT].incProducao].p[conjuntoNT[indexNT].producao[conjuntoNT[indexNT].incProducao].incCaracter].c[0] = buffer[k];
         conjuntoNT[indexNT].producao[conjuntoNT[indexNT].incProducao].incCaracter++;
     }
 }
